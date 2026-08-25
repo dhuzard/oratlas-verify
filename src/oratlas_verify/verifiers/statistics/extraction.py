@@ -46,6 +46,13 @@ _PATTERNS: tuple[tuple[TestType, re.Pattern[str]], ...] = (
     ),
 )
 
+_PARTIAL_T_PATTERN = re.compile(
+    r"\bt\s*\(\s*(?P<df>\d+(?:\.\d+)?)\s*\)\s*=\s*(?P<stat>[+-]?\d+(?:\.\d+)?)"
+    r"(?:\s*,\s*p\s*=\s*(?P<p>\d+(?:\.\d+)?(?:e[+-]?\d+)?))?"
+    r"(?:\s*,\s*(?P<side>two-sided|greater|less))?\b",
+    re.IGNORECASE,
+)
+
 
 @dataclass(frozen=True, slots=True)
 class ExtractionResult:
@@ -81,4 +88,40 @@ def extract_explicit_statistics(text: str, *, evidence_id: str) -> ExtractionRes
                     ),
                 )
             )
+    return ExtractionResult(tuple(item for _, item in sorted(assertions, key=lambda item: item[0])))
+
+
+def extract_statistic_candidates(text: str, *, evidence_id: str) -> ExtractionResult:
+    """Extract explicit calculations and incomplete t-test candidates without inference.
+
+    The incomplete form exists so missing p-values or sidedness become an
+    ``unverifiable`` scientific finding instead of disappearing from the run.
+    """
+    complete = extract_explicit_statistics(text, evidence_id=evidence_id)
+    assertions: list[tuple[int, StatisticAssertion]] = []
+    complete_spans = {item.source_span for item in complete.assertions}
+    for pattern_match in _PARTIAL_T_PATTERN.finditer(text):
+        source_span = pattern_match.group(0)
+        if source_span in complete_spans:
+            continue
+        groups = pattern_match.groupdict()
+        assertions.append(
+            (
+                pattern_match.start(),
+                StatisticAssertion(
+                    test_type=TestType.T,
+                    statistic=float(groups["stat"]),
+                    degrees_of_freedom=(float(groups["df"]),),
+                    reported_p=float(groups["p"]) if groups["p"] is not None else None,
+                    sidedness=(
+                        Sidedness(groups["side"].lower()) if groups["side"] is not None else None
+                    ),
+                    source_span=source_span,
+                    evidence_id=evidence_id,
+                ),
+            )
+        )
+    for assertion in complete.assertions:
+        start = text.find(assertion.source_span or "")
+        assertions.append((start, assertion))
     return ExtractionResult(tuple(item for _, item in sorted(assertions, key=lambda item: item[0])))
