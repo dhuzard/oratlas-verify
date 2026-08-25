@@ -1,0 +1,109 @@
+{
+  "A": {
+    "description": "t=3.12, df=38, correctly rounded p-value",
+    "protocol": "reported-statistic-consistency/0.1.0",
+    "input": {
+      "test_type": "t",
+      "statistic": 3.12,
+      "degrees_of_freedom": [38],
+      "reported_p": 0.0034,
+      "sidedness": "two-sided"
+    },
+    "expected_status": "verified"
+  },
+  "B": {
+    "description": "same t test with deliberately wrong p-value",
+    "protocol": "reported-statistic-consistency/0.1.0",
+    "input": {
+      "test_type": "t",
+      "statistic": 3.12,
+      "degrees_of_freedom": [38],
+      "reported_p": 0.2,
+      "sidedness": "two-sided"
+    },
+    "expected_status": "discrepancy"
+  },
+  "C": {
+    "description": "t test with missing sidedness",
+    "protocol": "reported-statistic-consistency/0.1.0",
+    "input": {
+      "test_type": "t",
+      "statistic": 3.12,
+      "degrees_of_freedom": [38],
+      "reported_p": 0.0034
+    },
+    "expected_status": "unverifiable"
+  },
+  "D": {
+    "description": "correct upper-tail F test",
+    "protocol": "reported-statistic-consistency/0.1.0",
+    "input": {
+      "test_type": "F",
+      "statistic": 4.0,
+      "degrees_of_freedom": [2, 30],
+      "reported_p": 0.02884462329569682,
+      "sidedness": "greater"
+    },
+    "expected_status": "verified"
+  },
+  "E": {
+    "description": "chi-square test with deliberately wrong p-value",
+    "protocol": "reported-statistic-consistency/0.1.0",
+    "input": {
+      "test_type": "chi-square",
+      "statistic": 10.0,
+      "degrees_of_freedom": [4],
+      "reported_p": 0.4,
+      "sidedness": "greater"
+    },
+    "expected_status": "discrepancy"
+  },
+  "F": {
+    "description": "identical original and regenerated structured values",
+    "protocol": "figure-structured-comparison/0.1.0",
+    "input": {
+      "original": {"series": [{"name": "control", "x": [0, 1], "y": [1, 2]}]},
+      "regenerated": {"series": [{"name": "control", "x": [0, 1], "y": [1, 2]}]},
+      "comparison_kind": "regeneration",
+      "absolute_tolerance": 0,
+      "relative_tolerance": 0
+    },
+    "expected_status": "verified"
+  },
+  "G": {
+    "description": "one regenerated figure series value deliberately altered",
+    "protocol": "figure-structured-comparison/0.1.0",
+    "input": {
+      "original": {"series": [{"name": "control", "x": [0, 1], "y": [1, 2]}]},
+      "regenerated": {"series": [{"name": "control", "x": [0, 1], "y": [1, 20]}]},
+      "comparison_kind": "regeneration",
+      "absolute_tolerance": 0,
+      "relative_tolerance": 0
+    },
+    "expected_status": "discrepancy"
+  },
+  "H": {
+    "description": "independent calculation equivalent within explicit tolerance",
+    "protocol": "analysis-result-comparison/0.1.0",
+    "input": {
+      "expected": {"effect": 1.0, "ci": [0.5, 1.5]},
+      "reproduced": {"effect": 1.00001, "ci": [0.50001, 1.49999]},
+      "comparison_kind": "independent-reproduction",
+      "absolute_tolerance": 0.0001,
+      "relative_tolerance": 0
+    },
+    "expected_status": "verified"
+  },
+  "I": {
+    "description": "independent calculation differs beyond explicit tolerance",
+    "protocol": "analysis-result-comparison/0.1.0",
+    "input": {
+      "expected": {"effect": 1.0},
+      "reproduced": {"effect": 2.0},
+      "comparison_kind": "independent-reproduction",
+      "absolute_tolerance": 0.0001,
+      "relative_tolerance": 0
+    },
+    "expected_status": "discrepancy"
+  }
+}
