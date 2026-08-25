@@ -27,4 +27,66 @@ jobs:
         run: uv run ruff check .
       - if: matrix.python-version == '3.12'
         run: uv run mypy
+      - if: matrix.python-version == '3.12'
+        run: uv build
 
+  oratlas-compatibility:
+    name: ORAtlas verification compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: file:${{ github.workspace }}/oratlas/packages/db/prisma/compatibility.db
+      SESSION_SECRET: compatibility-only-session-secret-not-for-production
+      AUTH_MOCK: "1"
+      NEXT_PUBLIC_BASE_URL: http://127.0.0.1:3100
+    steps:
+      - name: Checkout oratlas-verify
+        uses: actions/checkout@v4
+      - name: Checkout pinned ORAtlas
+        uses: actions/checkout@v4
+        with:
+          repository: dhuzard/oratlas
+          ref: 999580bad1fee5b22e8113c5e1c7c9b888eb1217
+          path: oratlas
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: oratlas/pnpm-lock.yaml
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+          run_install: false
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.28"
+          python-version: "3.12"
+          enable-cache: true
+      - name: Validate pinned OpenAPI
+        run: uv run python scripts/check_oratlas_openapi.py oratlas
+      - name: Install both repositories
+        run: |
+          uv sync --locked --all-extras
+          pnpm --dir oratlas install --frozen-lockfile
+      - name: Initialize ORAtlas fixture database
+        run: |
+          pnpm --dir oratlas --filter @oratlas/db db:generate
+          pnpm --dir oratlas db:push
+          pnpm --dir oratlas db:seed
+          cp integration/oratlas/bootstrap.ts oratlas/scripts/oratlas-verify-bootstrap.ts
+          ORATLAS_VERIFY_BOOTSTRAP_OUTPUT="$RUNNER_TEMP/oratlas-verify-bootstrap.json" \
+            pnpm --dir oratlas exec tsx --conditions=react-server scripts/oratlas-verify-bootstrap.ts
+      - name: Start ORAtlas
+        run: |
+          pnpm --dir oratlas --filter @oratlas/web exec next dev -H 127.0.0.1 -p 3100 \
+            > "$RUNNER_TEMP/oratlas-server.log" 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3100/api/health/ready > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          tail -n 200 "$RUNNER_TEMP/oratlas-server.log"
+          exit 1
+      - name: Run three HTTP scientific round trips
+        run: uv run python integration/oratlas/acceptance.py "$RUNNER_TEMP/oratlas-verify-bootstrap.json"

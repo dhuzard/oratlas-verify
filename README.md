@@ -7,19 +7,16 @@ knowledge platform, and the owner of certification lifecycles.
 
 ```text
 ORAtlas
-   │ frozen run input through API
+   │ evidence ledger / requested run + frozen input
    ▼
 oratlas-verify
-   ├── statistics
-   ├── figures
-   ├── analyses
-   └── independent auditors (interfaces only in 0.1.0)
+   │ deterministic scientific executor (SciPy in the first live flow)
    │
    ▼
-VerificationFindings
-   │ submit through API
+ORAtlas immutable findings + completed artifacts
+   │
    ▼
-ORAtlas
+future ORA certification
 ```
 
 oratlas-verify has no ORAtlas database connection, does not import Prisma models, and never writes to
@@ -131,27 +128,25 @@ modes are built-in deterministic procedures, verified externally supplied result
 enabled test-only synthetic backend. The sandbox namespace is an extension point that always rejects
 untrusted execution in 0.1.0.
 
-## Current ORAtlas API assumptions
+## Authoritative ORAtlas integration
 
-All assumptions below are isolated in `src/oratlas_verify/oratlas/` and can be adapted without changing
-scientific code:
+The production worker boundary is ORAtlas verification API `1.0.0`, pinned to merge commit
+`999580bad1fee5b22e8113c5e1c7c9b888eb1217`. ORAtlas creates a requested run; the CLI claims it,
+validates full PublicationVersion `1.3.0` or blinded
+`verification-publication-input/1.0.0`, transitions it to running, executes SciPy, prepares and uploads
+exact raw canonical report bytes, completes the artifact, submits immutable findings, completes the
+run, and verifies both public projections.
 
-- bearer authentication uses `ORATLAS_VERIFIER_TOKEN`;
-- `POST /api/verifications/runs` creates a run and returns `{ "runId": ... }`;
-- `GET /api/verifications/runs/{runId}/input` returns the frozen input DTO described in
-  `docs/oratlas-api-assumptions.md`;
-- findings and output artifact metadata are posted to `/findings` and `/artifacts`;
-- `POST /transition` accepts `completed` or `failed`;
-- permitted input artifact content is downloaded only from the run-scoped endpoint and is verified
-  against the frozen SHA-256 and byte length;
-- artifact bytes are retained by the configured worker store in this slice; the final API must define
-  upload negotiation or a durable object-store reference before distributed production deployment.
+Every run-scoped worker request uses the one-time in-memory
+`X-ORAtlas-Verification-Lease`. Stable artifact/finding keys provide exact replay semantics; a
+different payload under an existing key raises an explicit 409 idempotency conflict. See
+[`docs/oratlas-integration.md`](docs/oratlas-integration.md) for routes, DTOs, integrity checks,
+finding mapping, and the pinned cross-repository acceptance boundary.
 
 ## Scope limits and next slice
 
-This release deliberately stops before arbitrary code/container execution, production LLM auditors,
-automatic certification, ORA Scientific Merit 0.2 integration, crawling/web browsing, and reputation
-or global scoring. The recommended next slice is to finalize the generic ORAtlas VerificationRun API,
-add authenticated artifact upload negotiation, and run contract tests against its published OpenAPI
-schema. A separate isolated container worker can follow after a threat model and resource policy are
-approved.
+This release deliberately stops before lease renewal, continuous polling, arbitrary code/container
+execution, production LLM auditors, automatic certification, ORA Scientific Merit 0.2 integration,
+crawling/web browsing, and reputation or global scoring. The recommended next slice is a separately
+designed renewable-lease worker model for bounded long-running deterministic jobs; isolated
+arbitrary-code execution remains out of scope until it has its own threat model and resource policy.

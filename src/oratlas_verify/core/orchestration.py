@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any, Literal, Protocol
 from uuid import uuid4
 
 from oratlas_verify.core.artifacts import LocalArtifactStore
@@ -21,18 +20,6 @@ from oratlas_verify.core.registry import ProtocolRegistry
 from oratlas_verify.execution.deterministic import DeterministicBackend
 
 logger = logging.getLogger(__name__)
-
-
-class RunTransport(Protocol):
-    def retrieve_frozen_input(self, run_id: str) -> VerificationRequest: ...
-
-    def submit_findings(self, run_id: str, findings: tuple[Any, ...]) -> None: ...
-
-    def submit_artifact_metadata(self, run_id: str, artifacts: tuple[Any, ...]) -> None: ...
-
-    def transition_run(
-        self, run_id: str, state: Literal["completed", "failed"], reason: str | None = None
-    ) -> None: ...
 
 
 def _input_for_protocol(source: VerificationInput, protocol_key: str) -> VerificationInput:
@@ -111,23 +98,3 @@ class VerificationOrchestrator:
             artifacts=(artifact.metadata,),
             execution=execution,
         )
-
-    def run_remote(self, run_id: str, transport: RunTransport) -> VerificationResponse:
-        try:
-            request = transport.retrieve_frozen_input(run_id)
-            if request.run_id != run_id:
-                raise ValueError("ORAtlas response run id does not match requested run id")
-            response = self.execute(request)
-            transport.submit_findings(run_id, response.findings)
-            transport.submit_artifact_metadata(run_id, response.artifacts)
-            transport.transition_run(run_id, "completed")
-            return response
-        except Exception as exc:
-            try:
-                transport.transition_run(run_id, "failed", reason=type(exc).__name__)
-            except Exception:
-                logger.exception(
-                    "failed to transition verification run",
-                    extra={"run_id": run_id},
-                )
-            raise

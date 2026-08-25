@@ -25,6 +25,7 @@ from oratlas_verify.core.orchestration import VerificationOrchestrator
 from oratlas_verify.core.registry import build_default_registry
 from oratlas_verify.oratlas.authentication import ORAtlasConfig
 from oratlas_verify.oratlas.client import ORAtlasClient
+from oratlas_verify.oratlas.worker import ORAtlasVerificationWorker
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -62,14 +63,18 @@ def _verify_statistic(args: argparse.Namespace) -> int:
 
 def _run(args: argparse.Namespace) -> int:
     with ORAtlasClient(ORAtlasConfig.from_environment()) as client:
-        response = _orchestrator().run_remote(args.verification_run_id, client)
+        response = ORAtlasVerificationWorker(build_default_registry()).run(
+            args.verification_run_id,
+            client,
+            lease_seconds=args.lease_seconds,
+        )
     _write_json(response)
     return 0
 
 
 def _inspect(args: argparse.Namespace) -> int:
     with ORAtlasClient(ORAtlasConfig.from_environment()) as client:
-        request = client.retrieve_frozen_input(args.verification_run_id)
+        request = client.get_public_run(args.verification_run_id)
     # Inspection is explicit; callers control terminal output handling.
     _write_json(request)
     return 0
@@ -101,9 +106,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     run = subparsers.add_parser("run", help="retrieve and execute an ORAtlas verification run")
     run.add_argument("verification_run_id")
+    run.add_argument("--lease-seconds", type=int, default=300, choices=range(60, 901))
     run.set_defaults(handler=_run)
 
-    inspect = subparsers.add_parser("inspect", help="inspect an exact frozen ORAtlas input")
+    inspect = subparsers.add_parser("inspect", help="inspect public run evidence without claiming")
     inspect.add_argument("verification_run_id")
     inspect.set_defaults(handler=_inspect)
 
