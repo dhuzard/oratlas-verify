@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 PINNED_COMMIT = "999580bad1fee5b22e8113c5e1c7c9b888eb1217"
-PINNED_OPENAPI_SHA256 = "be306adfa2bc35993171d4ed1e0c8155abbb151f5a617532c64ddfab1c19cd78"
+PINNED_OPENAPI_SHA256 = "6e3a2cff2d266e67bbf999186520bb404aea7921a9362a44e1fd2c47f14b0a26"
 REQUIRED_ROUTES = (
     "/api/verifiers:",
     "/api/verifiers/{id}:",
@@ -34,7 +34,7 @@ def main() -> int:
     ).strip()
     if commit != PINNED_COMMIT:
         raise SystemExit(f"ORAtlas checkout is {commit}, expected {PINNED_COMMIT}")
-    document = (root / "docs" / "openapi.yaml").read_bytes()
+    document = (root / "docs" / "openapi.yaml").read_bytes().replace(b"\r\n", b"\n")
     actual_sha256 = hashlib.sha256(document).hexdigest()
     if actual_sha256 != PINNED_OPENAPI_SHA256:
         raise SystemExit(

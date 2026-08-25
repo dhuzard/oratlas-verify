@@ -5,7 +5,7 @@ This integration is pinned to ORAtlas merge commit
 `docs/openapi.yaml` and `docs/scientific-verification.md` at that commit. Scientific-verification API
 schema `1.0.0`, PublicationVersion packet `1.3.0`, and
 `verification-publication-input/1.0.0` are supported. CI checks the exact commit and frozen OpenAPI
-SHA-256 `be306adfa2bc35993171d4ed1e0c8155abbb151f5a617532c64ddfab1c19cd78`; it never tracks
+normalized-LF SHA-256 `6e3a2cff2d266e67bbf999186520bb404aea7921a9362a44e1fd2c47f14b0a26`; it never tracks
 ORAtlas `main` implicitly.
 
 ORAtlas is the immutable evidence ledger and run coordinator. It creates requested runs and frozen
